@@ -119,6 +119,7 @@ local function calculateNodeOrientation(Node)
 	
 	
 	--Y Orientation
+	Node.Orientation = {}
 	Node.Orientation.Y = math.atan2(normal.Y,math.sqrt(normal.X^2+normal.Z^2))
 	Node.Orientation.Y = math.asin(normal.Y/1)
 	--Temp
@@ -157,44 +158,113 @@ end
 
 
 --May want to make this a meta table
-local function SetNodeOrientation(Node,direction,theta)
+local function SetNodeOrientation(Node,direction,theta,i)
+	local xyz_0 = Node.Position-Node.Parent.Position
+	local look = CFrame.new(Node.Parent.Position,Node.Position)
+	local dist = (xyz_0).Magnitude
+	local normal = (xyz_0).Unit --Branch Direction With Respect to Parent
+
+	local xz_0 = Vector2.new(xyz_0.X,xyz_0.Z)
+	local xzNormal = xz_0.Unit
+
+
+	local xyz_1
+	local normal_1
+
 	if direction == "Y" then
-		local xyz_0 = Node.Position-Node.Parent.Position
-		
-		local look = CFrame.new(Node.Parent.Position,Node.Position)
-		
-		local dist = (xyz_0).Magnitude
-		
-		local normal = (xyz_0).Unit --Branch Direction With Respect to Parent
-		
 		local yMag_1 = math.sin(math.rad(theta))
 		local xzMag_1 = math.cos(math.rad(theta))
 		
-		local xzNormal = Vector2.new(normal.X,normal.Z).Unit
+		xzNormal = Vector2.new(math.abs(xzNormal.X),math.abs(xzNormal.Y))
 		local xz_1 = xzNormal*xzMag_1
 		
-		local normal_1 = Vector3.new(xz_1.X,yMag_1,xz_1.Y)	
+		normal_1 = Vector3.new(xz_1.X,yMag_1,xz_1.Y)	 
 		
 		
-		local xyz_1 = normal_1*dist
-		Node.Position = Node.Parent.Position+xyz_1
+		xyz_1 = normal_1*dist
 		
 		
-		--Adjust Upper Nodes (Relative To Node)
-		local UpperNodes = GetUpperNodes(Node)
-		for _, UpperNode in pairs(UpperNodes) do
-			local offset = UpperNode.Position-Node.Parent.Position 
-			local look2 = CFrame.new(Node.Parent.Position,Node.Position)
-			
-			local x = look:Inverse()*UpperNode.Position
-			
-			
-			UpperNode.Position = look2*x
-			
-			
-		end
+	elseif direction == "X" then
+		
+		xyz_1 = Vector3.new(xz_0.Magnitude*math.cos(math.rad(theta)),xyz_0.Y,xz_0.Magnitude*math.sin(math.rad(theta)))
+
+	
+	end
+
+	--Adjust Nodes 
+	-- Node.Position = Node.Parent.Position+xyz_1
+	-- local look2 = CFrame.new(Node.Parent.Position,Node.Position)
+	local newPos = Node.Parent.Position+xyz_1
+	local look2 = CFrame.new(Node.Parent.Position,newPos)*CFrame.Angles(math.rad(0),0,0)
+
+
+
+	--Adjust Angles to Ensure Other Angles are Held Constant
+	local x,y,z = look:ToEulerAnglesYXZ()
+
+	--Actual Components
+	--x -> y 
+	local thetas_0  = Vector3.new(math.deg(x),math.deg(y),math.deg(z))
+
+
+
+	local dTheta = theta-x --For testing, only change y (x)
+	look2 = look*CFrame.Angles(math.rad(dTheta),0,0)
+
+	-- look2 = CFrame.fromEulerAnglesXYZ(x,y,z)
+	--Calculate New Vectors
+	local R = look.RightVector
+	local normal_1 = xyz_1.Unit
+	local L = (normal_1).Unit
+	local U = L:Cross(R).Unit
+	
+	--Flip Sign of U if sign mismatch
+	if (look.UpVector.X < 0 and U.X > 0) or (look.UpVector.X > 0 and U.X < 0) then  
+		U = -U 
+	end 
+	U = -U
+	
+
+	look2 = CFrame.fromMatrix(
+		Node.Parent.Position,
+		R,
+		U,
+		-L
+	)
+	
+
+
+
+	local x,y,z = look2:ToEulerAnglesYXZ()
+	local thetas_1  = Vector3.new(math.deg(x),math.deg(y),math.deg(z))
+	--print(thetas_0)
+	print("--------------------------------")
+	print(thetas_1)
+	
+
+	-- local x,y,z = look:ToEulerAnglesYXZ()
+	-- print(Vector3.new(math.deg(x),math.deg(y),math.deg(z)))
+
+
+	--look2 = look2*CFrame.Angles(0,0,math.rad(90))
+
+	
+	
+	--Adjust Upper Nodes (Relative To Node)
+	local UpperNodes = GetUpperNodes(Node)
+	table.insert(UpperNodes,Node)
+	for _, UpperNode in pairs(UpperNodes) do
+
+		local x = look:Inverse()*UpperNode.Position
+		-- local x = UpperNode.Position*look:Inverse()
+		UpperNode.Position = look2*x
+
+
 		
 	end
+
+
+
 end
 
 
@@ -248,7 +318,7 @@ local function addModule(Plant, parentModuleID, parentNodeID,modulePrototypeName
 		newNode.Children = {}
 		
 		--Set Parent
-		--newNode.Parent = protoNode.Parent
+	--newNode.Parent = protoNode.Parent
 		newNode.Parent = newModule.Nodes[protoNode.Parent] 
 			
 		--If there's no parent node (in this module), then it's the first node. 
@@ -336,17 +406,33 @@ local function createPlant(AC, Pos)
 	---TEST
 	local Module = addModule(Plant,nil,nil,"A")
 	local Module2 = addModule(Plant,1,3,"A")
-	SetNodeOrientation(Module2.Nodes[2],"Y",45)
-	--rotateModule(Module,90)
-	--addModule(Plant,1,3,"A")
-	--addModule(Plant,1,1,"A")
+	--print(Module.Nodes[2])
+	-- local node = Module2.Nodes[1]
+	-- local node2 = Module2.Nodes[2]
+	-- calculateNodeOrientation(node2)
+	-- print(node2.Orientation.Y)
+
+	-- SetNodeOrientation(node,"Y",15)
+	-- calculateNodeOrientation(node2)
+	-- print(node2.Orientation.Y)
+
 	GeneratePlantNodes(Plant)
 	print(Plant.Modules)
 	
 	
+	return Plant
 	
 end
-createPlant(.5,Vector3.new(10,07,0))
+local Plant = createPlant(.5,Vector3.new(10,07,0))
+
+local i = 0
+while (wait(1)) do
+	i += 10.1
+	if i > 360 then i = 0 end
+	GeneratePlantNodes(Plant)
+	SetNodeOrientation(Plant.Modules[2].Nodes[2],"Y",i,i)
+end
+
 
 local function ModuleVigors(Plant)
 	--Calculate Branch Collision Volume
