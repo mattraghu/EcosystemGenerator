@@ -108,30 +108,6 @@ developModulePrototypes()
 
 --//Functions\\--
 
-
-
-local function calculateNodeOrientation(Node)
-	--Orientation Y And X. Z is Irrelavant. 
-	local normal = (Node.Position-Node.Parent.Position).Unit --Branch Direction With Respect to Parent
-	
-	
-	
-	
-	
-	--Y Orientation
-	Node.Orientation = {}
-	Node.Orientation.Y = math.atan2(normal.Y,math.sqrt(normal.X^2+normal.Z^2))
-	Node.Orientation.Y = math.asin(normal.Y/1)
-	--Temp
-	Node.Orientation.Y = math.deg(Node.Orientation.Y)
-
-	--X Orientation
-	Node.Orientation.X = math.atan2(normal.Z,normal.X)
-	--Temp
-	Node.Orientation.X = math.deg(Node.Orientation.X)
-end
-
-
 local function GetUpperNodes(Node)
 	--Get Upper All Upper Nodes of Node in Plant
 	local UpperNodes = {}
@@ -162,14 +138,21 @@ local function GetVectorRotation(Vect)
 	 if (Vect.Magnitude == 0) then
 		 normal = Vect
 	 end
-	 local theta_y = math.deg(math.asin(normal.Y))
+	 local theta_y = math.deg(math.asin(normal.Y/Vect.Magnitude))
 	 local theta_x = math.deg(math.atan2(normal.Z,normal.X))
+
+	 if normal.Z < 0 then
+		 theta_y = 180-theta_y 
+	 end
 
 	 return Vector2.new(theta_x,theta_y)
 end
 
 local function SetVectorRotation(Vect,direction,theta)
 	--//Rotate a vector about the origin
+
+
+
 	
 	local xyz_1
 
@@ -186,18 +169,30 @@ local function SetVectorRotation(Vect,direction,theta)
 
 	if direction == "Y" then
 		
+		--Get Current Rotation (To Know if We Should Add 180 to X)
 		
 		--Y
 		local yMag_1 = math.sin(math.rad(theta))
 		local xzMag_1 = math.cos(math.rad(theta))
-		
-		xzNormal = Vector2.new(math.abs(xzNormal.X),math.abs(xzNormal.Y))
-		local xz_1 = xzNormal*xzMag_1
+
+
+
+
+		local xz_1 = xzNormal*math.abs(xzMag_1)
 		
 		xyz_1 = Vector3.new(xz_1.X,yMag_1,xz_1.Y)*Vect.Magnitude
+
+		--Check if we need to reorientate x. 
+		local orient_0 = GetVectorRotation(xyz_1)
+		if (xzMag_1 < 0 and Vect.Z > 0) or (xzMag_1 > 0 and Vect.Z < 0) then
+			print(orient_0)
+			xyz_1 = SetVectorRotation(xyz_1,"X",orient_0.X+180)
+			
+		end
+
 	
 	elseif direction == "X" then
-		local xzMag = math.sqrt(1-Vect.Y^2)
+		local xzMag = math.sqrt(Vect.Magnitude^2-Vect.Y^2)
 		xyz_1 = Vector3.new(xzMag*math.cos(math.rad(theta)),Vect.Y,xzMag*math.sin(math.rad(theta)))
 
 	end
@@ -206,90 +201,67 @@ local function SetVectorRotation(Vect,direction,theta)
 	
 	
 end
---May want to make this a meta table
-local function SetNodeOrientation(Node,direction,theta,i)
+
+
+local function RotateNode(Node,direction,theta)
+	local pos = Node.Position
+	local parentPos = Node.Parent.Position
+	local look = CFrame.new(parentPos,pos)
+	local look2 
+
+	if direction == "Z" then
+		look2 = look*CFrame.Angles(math.rad(0),math.rad(0),math.rad(theta))
+	elseif direction == "Y" then
+		local orient_0 = GetVectorRotation(look.LookVector) 
+		local theta_1 = (theta+orient_0.Y)%360
+
+		local xyz_1 = SetVectorRotation(look.LookVector,direction,theta_1)
+
+		look2 = CFrame.new(parentPos,parentPos+xyz_1)
+
+	elseif direction == "X" then 
+		local orient_0 = GetVectorRotation(look.LookVector) 
+		local theta_1 = (theta+orient_0.X)%360
+
+		local xyz_1 = SetVectorRotation(look.LookVector,direction,theta_1)
+
+		look2 = CFrame.new(parentPos,parentPos+xyz_1)
+
+
+	end
+
+
+	--Adjust Upper Nodes (Relative To Node)
+	local UpperNodes = GetUpperNodes(Node)
+	table.insert(UpperNodes,Node)
+	for _, UpperNode in pairs(UpperNodes) do
+
+		local x = look:Inverse()*UpperNode.Position
+		-- local x = UpperNode.Position*look:Inverse()
+		UpperNode.Position = look2*x
+
+
+		
+	end
+
+end
+local function SetNodeOrientation(Node,direction,theta)
 	local xyz_0 = Node.Position-Node.Parent.Position
-	local look = CFrame.new(Node.Parent.Position,Node.Position)
-	local dist = (xyz_0).Magnitude
-	local normal = (xyz_0).Unit --Branch Direction With Respect to Parent
+	local dist = xyz_0.Magnitude
 
-	local xz_0 = Vector2.new(xyz_0.X,xyz_0.Z)
-	local xzNormal = xz_0.Unit
-
-
-	local xyz_1
-	local normal_1
-
-	-- xyz_1 = SetVectorRotation(xyz_0,direction,theta)
-	
-	-- For Z Testing:
-	--First calculate Y and X Rot 
-	local thetas_0 = GetVectorRotation(xyz_0)
-
-	local Up = Vector3.new(0,1,0)
-	Up = SetVectorRotation(Up,"Y",thetas_0.Y+90)
-	Up = SetVectorRotation(Up,"X",thetas_0.X)
-
-	print(thetas_0)
-	print(GetVectorRotation(Up))
-
-
-	xyz_1 = xyz_0
--- 
-
-
-	local newPos = Node.Parent.Position+xyz_1
-	local look2 = CFrame.new(Node.Parent.Position,newPos)*CFrame.Angles(math.rad(0),0,0)
-
-
-
-	--Adjust Angles to Ensure Other Angles are Held Constant
-	-- local x,y,z = Vector3.new(0,1,0):ToEulerAnglesYXZ()
-
-	--Actual Components
-	--x -> y 
-	-- local thetas_0  = Vector3.new(math.deg(x),math.deg(y),math.deg(z))
-
-
-
-	look2 = look*CFrame.Angles(math.rad(0),0,math.rad(5))
-
-	-- look2 = CFrame.fromEulerAnglesXYZ(x,y,z)
-	--Calculate New Vectors
-	local R = look.RightVector
-	local normal_1 = xyz_1.Unit
-	local L = (normal_1).Unit
-	local U = L:Cross(R).Unit
-	
-	--Flip Sign of U if sign mismatch
-	if (look.UpVector.X < 0 and U.X > 0) or (look.UpVector.X > 0 and U.X < 0) then  
-		U = -U 
-	end 
-	U = -U
+	local xyz_1 = SetVectorRotation(xyz_0,direction,theta)
 	
 
-	look2 = CFrame.fromMatrix(
-		Node.Parent.Position,
-		R,
-		U,
-		-L
-	)
+
+	local pos = Node.Position
+	local parentPos = Node.Parent.Position
+	local look = CFrame.new(parentPos,pos)
+	
+	local look2 = CFrame.new(parentPos,parentPos+xyz_1)
 	
 
-	local look2 = CFrame.new(Node.Parent.Position,newPos)*CFrame.Angles(math.rad(0),math.rad(0),math.rad(10))
 
 
-
-	--print(thetas_0)
-	print("--------------------------------")
-	print(L:Dot(Up))
-	
-
-	-- local x,y,z = look:ToEulerAnglesYXZ()
-	-- print(Vector3.new(math.deg(x),math.deg(y),math.deg(z)))
-
-
-	--look2 = look2*CFrame.Angles(0,0,math.rad(90))
 
 	
 	
@@ -312,10 +284,8 @@ end
 
 local function Orientation(Node)
 	--Returns the Orientation of Node 
-	local x,y,z = Node.CFrame:ToEulerAnglesYXZ()
-	local theta  = Vector3.new(math.deg(x),math.deg(y),math.deg(z))
-
-	return theta
+	local look = Node.Position-Node.Parent.Position
+	return GetVectorRotation(look)
 end
 
 -- local function SetNodeOrientation(Node,NewOrientation)
@@ -357,6 +327,9 @@ local function GeneratePlantNodes(Plant)
 			-- nodePart.Position= Node.CFrame.Position
 			nodePart.Name = NodeID
 			nodePart.Parent = ModuleFolder
+
+
+			Node.Part = nodePart
 		end
 	end
 	
@@ -502,18 +475,59 @@ local function createPlant(AC, Pos)
 end
 local Plant = createPlant(.5,Vector3.new(10,07,0))
 local Node = Plant.Modules[2].Nodes[1]
+local Node2 = Plant.Modules[2].Nodes[3]
 
 
 GeneratePlantNodes(Plant)
 
 
 local i = 0
-while (wait(1)) do
-	i += 10.1
-	if i > 360 then i = 0 end
-	GeneratePlantNodes(Plant)
-	SetNodeOrientation(Node,"Y",i,i)
+local orient0 = Orientation(Node)
+local a = 0
+
+
+for x = 0, 360, 20 do
+		RotateNode(Node,"X",20)
+	for y = 0, 360, 20 do
+		RotateNode(Node,"Y",20)
+
+		GeneratePlantNodes(Plant)
+		Node.Part.Color = Color3.fromRGB(255,0,0)
+		Node.Part.Parent = workspace
+
+		Plant.Folder:ClearAllChildren()
+	end
+
+	wait(.1)
+
 end
+-- while (wait(1)) do
+
+-- 	i = 10.1 + i
+-- 	if i > 360 then i = 0 end
+-- 	-- -- if i > 90 and i < 270 then a = 180 else a = 0 end 
+-- 	GeneratePlantNodes(Plant)
+-- 	-- RotateNode(Node,"Z",10)
+
+
+
+
+-- 	-- print(Orientation(Node))
+-- 	RotateNode(Node,"X",10)
+-- 	-- SetNodeOrientation(Node,"Y",45)
+-- 	-- SetNodeOrientation(Node,"Y",i)
+-- 	-- -- SetNodeOrientation(Node,"X",orient0.X+a)
+-- 	-- -- SetNodeOrientation(Node,"Y",i)
+
+
+
+
+-- 	Node.Part.Color = Color3.fromRGB(255,0,0)
+-- 	Node.Part.Parent = workspace
+
+-- 	-- -- Node2.Part.Color = Color3.fromRGB(0,255,0)
+-- 	-- -- Node2.Part.Parent = workspace
+-- end
 
 
 local function ModuleVigors(Plant)
