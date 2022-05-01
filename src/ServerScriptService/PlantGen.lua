@@ -1,4 +1,5 @@
 --!!Plant Ecosystem Control. Based off of journal "Synthetic Silviculture: Multi-scale Modeling of Plant Ecosystems" https://storage.googleapis.com/pirk.io/papers/Makowski.etal-2019-Synthetic-Silviculture.pdf !!--
+local PlantGen = {}
 
 
 --//Vars\\--
@@ -123,6 +124,35 @@ local function GetUpperNodes(Node)
 			
 			if node.Children then
 				table.insert(childQueue,node.Children)
+			end
+		end
+		
+		table.remove(childQueue,1)
+	end
+	
+	return UpperNodes
+end
+
+local function GetFirstNode(Plant)
+	--Returns the first node of a plant (if existant)
+	return Plant.Modules[1] and Plant.Modules[1].Nodes[1]
+end
+function PlantGen.GetEndNodes(Plant)
+	--Get Upper All Upper Nodes of Node in Plant
+	local UpperNodes = {}
+	
+	--Create a queue to process all upper nodes
+	local childQueue = {} --Children Nodes to Be Processed (Basically Groups of Nodes {Node1,Node2},{Node3},..) 
+	table.insert(childQueue,{GetFirstNode(Plant)})
+	
+	while (#childQueue > 0) do 
+		wait()
+		for _, node in pairs(childQueue[1]) do 
+			
+			if node.Children and #node.Children > 0 then
+				table.insert(childQueue,node.Children)
+			else
+				table.insert(UpperNodes,node)
 			end
 		end
 		
@@ -287,31 +317,9 @@ local function Orientation(Node)
 	return GetVectorRotation(look)
 end
 
--- local function SetNodeOrientation(Node,NewOrientation)
--- 	local look = Node.CFrame
-
--- 	local look2 = look*CFrame.Angles(math.rad(0),math.rad(10),math.rad(0))
-
--- 	local UpperNodes = GetUpperNodes(Node)
--- 	table.insert(UpperNodes,Node)
--- 	for _, UpperNode in pairs(UpperNodes) do
-
--- 		local x = look:Inverse()*UpperNode.CFrame
--- 		-- local x = UpperNode.CFrame*look:Inverse()
--- 		-- print(look)
--- 		-- local x = UpperNode.Position*look:Inverse()
--- 		UpperNode.CFrame = look2*x
-
-
-		
--- 	end
-
--- end
-
-
 
 local Node_Temp = game:GetService("ServerStorage"):WaitForChild("Node") --For use in VVV 
-local function GeneratePlantNodes(Plant)
+function PlantGen.GeneratePlantNodes(Plant)
 	--Create physicial parts to represent plant nodes (For Testing Purposes )
 	Plant.Folder:ClearAllChildren()
 	
@@ -336,7 +344,7 @@ end
 
 
 
-local function addModule(Plant, parentModuleID, parentNodeID,modulePrototypeName)
+function PlantGen.addModule(Plant, parentModuleID, parentNodeID,modulePrototypeName)
 	--Add a prototype module onto the end node of a plant
 	--Var Info
 		--Plant = Plant Table Generated from createPlant Function
@@ -413,7 +421,7 @@ local function addModule(Plant, parentModuleID, parentNodeID,modulePrototypeName
 end
 
 
-local function createPlant(AC, Pos)
+function PlantGen.createPlant(AC, Pos)
 	--Create Empty Plant Container
 	--Var Info:
 		--AC = Apacial Control. Tendency For Apacial Node To Dominate (Higher Values Result in Skinnier Plants) 
@@ -453,85 +461,21 @@ local function createPlant(AC, Pos)
 	Plant.Folder.Parent = TerrainAssetsFolder
 	
 	---TEST
-	local Module = addModule(Plant,nil,nil,"A")
-	local Module2 = addModule(Plant,1,3,"A")
+	local Module = PlantGen.addModule(Plant,nil,nil,"A")
+	local Module2 = PlantGen.addModule(Plant,1,3,"A")
 	
-	local Node = Module2.Nodes[1] 
+	local Node = Module2.Nodes[2] 
 	local ParentOrient = Orientation(Node.Parent)
 	print(ParentOrient)
 	SetNodeOrientation(Node,"Y",ParentOrient.Y)
 	SetNodeOrientation(Node,"X",ParentOrient.X)
-	--print(Module.Nodes[2])
-	-- local node = Module2.Nodes[1]
-	-- local node2 = Module2.Nodes[2]
-	-- calculateNodeOrientation(node2)
-	-- print(node2.Orientation.Y)
-
-	-- SetNodeOrientation(node,"Y",15)
-	-- calculateNodeOrientation(node2)
-	-- print(node2.Orientation.Y)
-
-	GeneratePlantNodes(Plant)
 	
 	
 	return Plant
 	
 end
-local Plant = createPlant(.5,Vector3.new(10,07,0))
-local Node = Plant.Modules[2].Nodes[1]
-local Node2 = Plant.Modules[2].Nodes[3]
 
 
-GeneratePlantNodes(Plant)
-
-
-local i = 0
-local orient0 = Orientation(Node)
-local a = 0
-
-
--- for x = 0, 360, 20 do
--- 		RotateNode(Node,"X",20)
--- 	for y = 0, 360, 20 do
--- 		RotateNode(Node,"Y",20)
-
--- 		GeneratePlantNodes(Plant)
--- 		Node.Part.Color = Color3.fromRGB(255,0,0)
--- 		Node.Part.Parent = workspace
-
--- 		Plant.Folder:ClearAllChildren()
--- 	end
-
--- 	wait(.1)
-
--- end
--- while (wait(1)) do
-
--- 	i = 10.1 + i
--- 	if i > 360 then i = 0 end
--- 	-- -- if i > 90 and i < 270 then a = 180 else a = 0 end 
--- 	GeneratePlantNodes(Plant)
--- 	-- RotateNode(Node,"Z",10)
-
-
-
-
--- 	-- print(Orientation(Node))
--- 	RotateNode(Node,"X",10)
--- 	-- SetNodeOrientation(Node,"Y",45)
--- 	-- SetNodeOrientation(Node,"Y",i)
--- 	-- -- SetNodeOrientation(Node,"X",orient0.X+a)
--- 	-- -- SetNodeOrientation(Node,"Y",i)
-
-
-
-
--- 	Node.Part.Color = Color3.fromRGB(255,0,0)
--- 	Node.Part.Parent = workspace
-
--- 	-- -- Node2.Part.Color = Color3.fromRGB(0,255,0)
--- 	-- -- Node2.Part.Parent = workspace
--- end
 
 
 local function ModuleVigors(Plant)
@@ -577,3 +521,6 @@ end
 local function updatePlant(Plant)
 	
 end
+
+
+return PlantGen
