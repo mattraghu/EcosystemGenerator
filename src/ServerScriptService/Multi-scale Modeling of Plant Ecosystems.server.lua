@@ -134,14 +134,14 @@ end
 
 
 local function GetVectorRotation(Vect)
-	 local normal = Vect.Unit
-	 if (Vect.Magnitude == 0) then
-		 normal = Vect
-	 end
-	 local theta_y = math.deg(math.asin(normal.Y/Vect.Magnitude))
-	 local theta_x = math.deg(math.atan2(normal.Z,normal.X))
+	--  local normal = Vect.Unit
+	--  if (Vect.Magnitude == 0) then
+	-- 	 normal = Vect
+	--  end
+	 local theta_y = math.deg(math.asin(Vect.Y/Vect.Magnitude))
+	 local theta_x = math.deg(math.atan2(Vect.Z,Vect.X))
 
-	 if normal.Z < 0 then
+	 if Vect.Z < 0 then
 		 theta_y = 180-theta_y 
 	 end
 
@@ -185,7 +185,6 @@ local function SetVectorRotation(Vect,direction,theta)
 		--Check if we need to reorientate x. 
 		local orient_0 = GetVectorRotation(xyz_1)
 		if (xzMag_1 < 0 and Vect.Z > 0) or (xzMag_1 > 0 and Vect.Z < 0) then
-			print(orient_0)
 			xyz_1 = SetVectorRotation(xyz_1,"X",orient_0.X+180)
 			
 		end
@@ -456,6 +455,12 @@ local function createPlant(AC, Pos)
 	---TEST
 	local Module = addModule(Plant,nil,nil,"A")
 	local Module2 = addModule(Plant,1,3,"A")
+	
+	local Node = Module2.Nodes[1] 
+	local ParentOrient = Orientation(Node.Parent)
+	print(ParentOrient)
+	SetNodeOrientation(Node,"Y",ParentOrient.Y)
+	SetNodeOrientation(Node,"X",ParentOrient.X)
 	--print(Module.Nodes[2])
 	-- local node = Module2.Nodes[1]
 	-- local node2 = Module2.Nodes[2]
@@ -467,7 +472,6 @@ local function createPlant(AC, Pos)
 	-- print(node2.Orientation.Y)
 
 	GeneratePlantNodes(Plant)
-	print(Plant.Modules)
 	
 	
 	return Plant
@@ -486,21 +490,21 @@ local orient0 = Orientation(Node)
 local a = 0
 
 
-for x = 0, 360, 20 do
-		RotateNode(Node,"X",20)
-	for y = 0, 360, 20 do
-		RotateNode(Node,"Y",20)
+-- for x = 0, 360, 20 do
+-- 		RotateNode(Node,"X",20)
+-- 	for y = 0, 360, 20 do
+-- 		RotateNode(Node,"Y",20)
 
-		GeneratePlantNodes(Plant)
-		Node.Part.Color = Color3.fromRGB(255,0,0)
-		Node.Part.Parent = workspace
+-- 		GeneratePlantNodes(Plant)
+-- 		Node.Part.Color = Color3.fromRGB(255,0,0)
+-- 		Node.Part.Parent = workspace
 
-		Plant.Folder:ClearAllChildren()
-	end
+-- 		Plant.Folder:ClearAllChildren()
+-- 	end
 
-	wait(.1)
+-- 	wait(.1)
 
-end
+-- end
 -- while (wait(1)) do
 
 -- 	i = 10.1 + i
