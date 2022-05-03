@@ -193,6 +193,17 @@ function PlantGen.GetEndNodes(Plant)
 end
 
 
+function PlantGen.GetNodes(Plant)
+	--Get ALL the nodes in a plant
+	local Nodes = {}
+	for _, Module in pairs(Plant.Modules) do
+		for _, Node in pairs(Module.Nodes) do
+			table.insert(Nodes,Node)
+		end
+	end
+	return Nodes
+end
+
 local function GetVectorRotation(Vect)
 	--  local normal = Vect.Unit
 	--  if (Vect.Magnitude == 0) then
@@ -262,7 +273,7 @@ local function SetVectorRotation(Vect,direction,theta)
 end
 
 
-local function RotateNode(Node,direction,theta)
+function PlantGen.RotateNode(Node,direction,theta)
 	local pos = Node.Position
 	local parentPos = Node.Parent.Position
 	local look = CFrame.new(parentPos,pos)
@@ -291,7 +302,7 @@ local function RotateNode(Node,direction,theta)
 
 
 	--Adjust Upper Nodes (Relative To Node)
-	local UpperNodes = GetUpperNodes(Node)
+	local UpperNodes = PlantGen.GetUpperNodes(Node)
 	table.insert(UpperNodes,Node)
 	for _, UpperNode in pairs(UpperNodes) do
 
@@ -304,7 +315,7 @@ local function RotateNode(Node,direction,theta)
 	end
 
 end
-local function SetNodeOrientation(Node,direction,theta)
+function PlantGen.SetNodeOrientation(Node,direction,theta)
 	local xyz_0 = Node.Position-Node.Parent.Position
 	local dist = xyz_0.Magnitude
 
@@ -325,7 +336,7 @@ local function SetNodeOrientation(Node,direction,theta)
 	
 	
 	--Adjust Upper Nodes (Relative To Node)
-	local UpperNodes = GetUpperNodes(Node)
+	local UpperNodes = PlantGen.GetUpperNodes(Node)
 	table.insert(UpperNodes,Node)
 	for _, UpperNode in pairs(UpperNodes) do
 
@@ -341,7 +352,7 @@ local function SetNodeOrientation(Node,direction,theta)
 
 end
 
-local function Orientation(Node)
+function PlantGen.Orientation(Node)
 	--Returns the Orientation of Node 
 	local look = Node.Position-Node.Parent.Position
 	return GetVectorRotation(look)
@@ -472,11 +483,18 @@ function PlantGen.addModule(Plant, modulePrototypeName, ParentNode)
 		
 
 		--Other Attributes
+		
+		--R (For Intersect Testing)
 		newNode.r = protoNode.r
+
+
 		
 		newModule.Nodes[protoNodeID] = newNode
 	end
 	
+	--First Node = Parent Node (For Ease of Access), Second one used for orientation
+	newModule.ParentNode = newModule.Nodes[1]
+	newModule.OrientNode = newModule.Nodes[2]
 	
 	
 	
