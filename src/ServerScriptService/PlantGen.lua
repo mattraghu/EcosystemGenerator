@@ -97,19 +97,49 @@ local function developModulePrototypes()
 					--Create Spacial Information
 					Node.Position = nodePart.Position-FirstNodePart.Position --Positions Relative to Node 1 (Calculated First). I.E. Node 1 at 0,0,0 
 
-					
 					break
 				end
 			end
 		end
+
+
+		--After Position Calculation: 
+		--Calculate Boundary (r)
+		for NodeID, Node in pairs(Nodes) do	
+			local furthestBranchDist = 0
+			--Check Children
+			for _, childID in pairs(Node.Children or {}) do
+				local Child = Nodes[childID]
+				local dist = (Child.Position-Node.Position).Magnitude
+				if dist > furthestBranchDist then
+					furthestBranchDist = dist
+				end
+			end
+
+			--Check Parent
+			if Node.Parent then
+				local ParentNode = Nodes[Node.Parent]
+				local dist = (Node.Position-ParentNode.Position).Magnitude
+				if dist > furthestBranchDist then
+					furthestBranchDist = dist
+				end
+			end
+
+			Node.r = furthestBranchDist/2
+		end
+
 	end
 end
+
+
 developModulePrototypes()
+
+
 
 
 --//Functions\\--
 
-local function GetUpperNodes(Node)
+function PlantGen.GetUpperNodes(Node)
 	--Get Upper All Upper Nodes of Node in Plant
 	local UpperNodes = {}
 	
@@ -118,7 +148,7 @@ local function GetUpperNodes(Node)
 	table.insert(childQueue,Node.Children)
 	
 	while (#childQueue > 0) do 
-		wait()
+		-- wait()
 		for _, node in pairs(childQueue[1]) do 
 			table.insert(UpperNodes,node)
 			
@@ -146,7 +176,7 @@ function PlantGen.GetEndNodes(Plant)
 	table.insert(childQueue,{GetFirstNode(Plant)})
 	
 	while (#childQueue > 0) do 
-		wait()
+		-- wait()
 		for _, node in pairs(childQueue[1]) do 
 			
 			if node.Children and #node.Children > 0 then
@@ -318,6 +348,28 @@ local function Orientation(Node)
 end
 
 
+function PlantGen.GetIntersectingWeight(NodesA,NodesB)
+	local weight = 0
+	for _, NodeA in pairs(NodesA) do
+		for _, NodeB in pairs(NodesB) do
+			local dist = (NodeA.Position-NodeB.Position).Magnitude
+			local minDist = NodeA.r+NodeB.r
+			
+			local intersectValue = math.clamp(minDist-dist,0,minDist)
+			
+			
+			weight = weight + intersectValue
+		end
+		
+	end
+	return weight
+end
+
+
+
+
+--Generation
+
 local Node_Temp = game:GetService("ServerStorage"):WaitForChild("Node") --For use in VVV 
 function PlantGen.GeneratePlantNodes(Plant)
 	--Create physicial parts to represent plant nodes (For Testing Purposes )
@@ -343,8 +395,25 @@ function PlantGen.GeneratePlantNodes(Plant)
 end
 
 
+local BoundaryPreset = ModulePrototypesFolder:WaitForChild("Boundary")
+function PlantGen.DisplayBoundries(Plant)
+	for _, Module in pairs(Plant.Modules) do
+		for _, Node in pairs(Module.Nodes) do
+			if Node.Part then
+				local d = Node.r*2
+				local Boundary = BoundaryPreset:Clone()
+				Boundary.Size = Vector3.new(d,d,d)
+				Boundary.Position = Node.Position 
 
-function PlantGen.addModule(Plant, parentModuleID, parentNodeID,modulePrototypeName)
+				Boundary.Parent = Node.Part
+				
+			end
+		end
+	end
+end
+
+
+function PlantGen.addModule(Plant, modulePrototypeName, ParentNode)
 	--Add a prototype module onto the end node of a plant
 	--Var Info
 		--Plant = Plant Table Generated from createPlant Function
@@ -352,8 +421,8 @@ function PlantGen.addModule(Plant, parentModuleID, parentNodeID,modulePrototypeN
 		--parentModuleID = ID of parent node (Can be nil)
 	
 	local ModulePrototype = ModulePrototypes[modulePrototypeName]
-	local ParentModule = parentModuleID and Plant.Modules[parentModuleID]
-	local ParentNode = ParentModule and ParentModule.Nodes[parentNodeID]
+	-- local ParentModule = parentModuleID and Plant.Modules[parentModuleID]
+	-- local ParentNode = ParentModule and ParentModule.Nodes[parentNodeID]
 	
 	--Create new Module
 	local newModule = {}
@@ -400,6 +469,10 @@ function PlantGen.addModule(Plant, parentModuleID, parentNodeID,modulePrototypeN
 
 		local pos = protoNode.Position+PlacementPos
 		newNode.CFrame = CFrame.new(pos,PlacementPos)
+		
+
+		--Other Attributes
+		newNode.r = protoNode.r
 		
 		newModule.Nodes[protoNodeID] = newNode
 	end
@@ -459,17 +532,6 @@ function PlantGen.createPlant(AC, Pos)
 	
 	
 	Plant.Folder.Parent = TerrainAssetsFolder
-	
-	---TEST
-	local Module = PlantGen.addModule(Plant,nil,nil,"A")
-	local Module2 = PlantGen.addModule(Plant,1,3,"A")
-	
-	local Node = Module2.Nodes[2] 
-	local ParentOrient = Orientation(Node.Parent)
-	print(ParentOrient)
-	SetNodeOrientation(Node,"Y",ParentOrient.Y)
-	SetNodeOrientation(Node,"X",ParentOrient.X)
-	
 	
 	return Plant
 	
