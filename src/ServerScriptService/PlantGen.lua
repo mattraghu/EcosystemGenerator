@@ -359,6 +359,9 @@ function PlantGen.Orientation(Node)
 end
 
 
+
+
+--Intersect Weight
 function PlantGen.GetIntersectingWeight(NodesA,NodesB)
 	local weight = 0
 	for _, NodeA in pairs(NodesA) do
@@ -376,6 +379,9 @@ function PlantGen.GetIntersectingWeight(NodesA,NodesB)
 	return weight
 end
 
+
+--Light Weight 
+-- local function GenerateSphere(center, r, h)
 
 
 
@@ -420,6 +426,38 @@ function PlantGen.DisplayBoundries(Plant)
 				
 			end
 		end
+	end
+end
+local function DrawLine(p1,p2,thickness) -- Draws line using two locations and thickness.
+	local orientCFrame = CFrame.new(p1,p2)
+	local length = (p1-p2).magnitude + thickness
+
+	local line = Instance.new("Part") 
+
+	--Default Props
+	line.Anchored = true
+	line.CastShadow = false
+	line.CanCollide = false 
+
+
+	line.Size = Vector3.new(thickness,thickness,length)
+	line.CFrame = orientCFrame 
+	line.Position = (p1+p2)/2 
+
+	line.CFrame = line.CFrame*CFrame.new(0,thickness,0) 
+	return line
+end 
+function PlantGen.DrawBranches(Plant)
+	if not Plant.ParentModule then return end--Return if plant is empty
+
+	local UpperNodes = PlantGen.GetUpperNodes(Plant.ParentModule.ParentNode)
+
+	for _, ChildNode in pairs(UpperNodes) do
+		local ParentNode = ChildNode.Parent
+
+		--Create Branch Part Between Parent Node and Child
+		local BranchPart = DrawLine(ParentNode.Position,ChildNode.Position,.1)
+		BranchPart.Parent = ParentNode.Part
 	end
 end
 
@@ -498,6 +536,12 @@ function PlantGen.addModule(Plant, modulePrototypeName, ParentNode)
 	
 	
 	
+	--Set "ParentModule" Attribute To Plant
+	if newModule.ID == 1 then 
+		Plant.ParentModule = newModule
+	end
+	
+
 	Plant.Modules[newModule.ID] = newModule
 	
 	--Assign Parent/Child Variables
