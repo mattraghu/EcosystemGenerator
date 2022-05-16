@@ -29,90 +29,71 @@ local Module = PlantGen.addModule(Plant,"A")
 
 
 local height = 0
+
+local function LogisticalGrowthRate(t,X_0,X_m,r)
+    return X_m*r*(X_m/X_0-1)*math.exp(-r*t)/((1+(X_m/X_0-1)*math.exp(r*t))^2)
+end
+
+local function LogisticalGrowth(t,X_0,X_m,r)
+    return X_m/(1+(X_m/X_0-1)*math.exp(-r*t))
+end
 while (Time < 10000) do
-
--- 	--TEST
-    local EndNodes = PlantGen.GetEndNodes(Plant)
-
-    local randEndNode = math.random(1,#EndNodes)
+	local EndNodes = PlantGen.GetEndNodes(Plant)
     
---     if randEndNode > highestEndNode then
---         highestEndNode = randEndNode
---     end
---     print("Apple:" .. highestEndNode)
-	local Module = PlantGen.addModule(Plant,"A",EndNodes[randEndNode])
- 
+    local branchSize = 12.5
+    local X_m = 200
+    local X_0 = 10
+    local r = .001
 
-    --Calculate Best Orientation
-    local Node = Module.OrientNode
-	local ParentOrient = PlantGen.Orientation(Node.Parent)
-	PlantGen.SetNodeOrientation(Node,"Y",ParentOrient.Y)
-    
-    local BestOrientation = {}
-    local BestWeight = 7777777
-    for y = -0, 90, 10*3 do
-        -- wait()
+    local theoreticalHeight = LogisticalGrowth(Time,X_0,X_m,r)
 
-        PlantGen.SetNodeOrientation(Node,"Y",y)
-        for x = 0, 360, 10*3 do
-            PlantGen.SetNodeOrientation(Node,"X",x)
-            
-            for z = 0, 360, 30*3 do
-                
-                PlantGen.RotateNode(Node,"Z",10)
-                -- PlantGen.GeneratePlantNodes(Plant)
-                -- PlantGen.DisplayBoundries(Plant)
-                -- PlantGen.DrawBranches(Plant)
+    while height < theoreticalHeight do
+     
 
-                -- print(PlantGen.Orientation(Node))
-                local s = tick()
-                local Weight = PlantGen.GetIntersectingWeight(Module.Nodes,PlantGen.GetNodes(Plant))
-                print("Apple:"..tick()-s)
-                if Weight < BestWeight then
-                    BestWeight = Weight
-                    BestOrientation = Vector3.new(x,y,0)
+	    local EndNodes = PlantGen.GetEndNodes(Plant)
+        
+        for _, Node in pairs(EndNodes) do 
+            if height > theoreticalHeight then
+                break
+            end
+            --Add Module 
+            local randEndNode = math.random(1,#EndNodes)
+
+            wait(1)
+
+            PlantGen.GeneratePlantNodes(Plant)
+            PlantGen.DisplayBoundries(Plant)
+            PlantGen.DrawBranches(Plant)
+
+
+
+            PlantGen.addRotatedModule(Plant,Node) 
+
+
+            --Get Height
+            for _, Node in pairs(EndNodes) do
+                local y = Node.Position.Y
+                if y > height then
+                    height = y 
                 end
-            end 
-        end
-            
-        -- wait(3)
-    end
- 
-    PlantGen.SetNodeOrientation(Node,"Y",BestOrientation.Y)
-    PlantGen.SetNodeOrientation(Node,"X",BestOrientation.X)
 
-    local bestZ = 0
-    local bestWeight = 0
-    for z = 0, 360, 10 do
-        PlantGen.RotateNode(Node,"Z",10)
-        local Weight = PlantGen.GetIntersectingWeight(Module.Nodes,PlantGen.GetNodes(Plant))
-        if Weight > bestWeight then
-            bestWeight = Weight
-            bestZ = z
+            end
         end
+
     end
 
-
-    PlantGen.RotateNode(Node,"Z",bestZ)
-
-
-
-    for _, Node in pairs(Module.Nodes) do
+    --Get Height
+    for _, Node in pairs(EndNodes) do
         local y = Node.Position.Y
         if y > height then
             height = y 
         end
 
     end
+    
 
-    -- print("Apple:" .. height)
-	
--- 	-- local Node = Module2.Nodes[2] 
--- 	-- local ParentOrient = Orientation(Node.Parent)
--- 	-- print(ParentOrient)
--- 	-- SetNodeOrientation(Node,"Y",ParentOrient.Y)
--- 	-- SetNodeOrientation(Node,"X",ParentOrient.X)
-	
+    print("Apple: "..height)
+    print(theoreticalHeight)
 
     Time = Time + dt
 
@@ -121,10 +102,10 @@ while (Time < 10000) do
         timer = tick()
         wait()
     end
-    wait(.1)
-    PlantGen.GeneratePlantNodes(Plant)
-    PlantGen.DisplayBoundries(Plant)
-    PlantGen.DrawBranches(Plant)
+    -- wait(.1)
+    -- PlantGen.GeneratePlantNodes(Plant)
+    -- PlantGen.DisplayBoundries(Plant)
+    -- PlantGen.DrawBranches(Plant)
 end
 
 

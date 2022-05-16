@@ -44,16 +44,16 @@ local ModulePrototypes = {
 	["A"] = {
 		Preset = ModulePrototypesFolder:WaitForChild("A"),
 		Nodes = {
-			[1] = {
-				Children = {
-					2
-				}
-			},
-			[2] = {
-				Children = {
-					3,4
-				}
-			}
+			-- [1] = {
+			-- 	Children = {
+			-- 		2
+			-- 	}
+			-- },
+			-- [2] = {
+			-- 	Children = {
+			-- 		3,4
+			-- 	}
+			-- }
 		}
 		
 	}
@@ -69,65 +69,105 @@ local stepTime = 0
 --Translate branch prototype builds into table form (Nodal Positions, Orientations)
 local function developModulePrototypes()
 	for _, ModulePrototype in pairs(ModulePrototypes) do
+		local Nodes = {}
+
+		local queue = {ModulePrototype.Preset:GetChildren()}
+		local p0 = ModulePrototype.Preset:FindFirstChildWhichIsA("BasePart").Position --Position of first node
 		
-		local Nodes = ModulePrototype.Nodes
-		local FirstNodePart
-		
-		for NodeID, Node in pairs(Nodes) do	
-			--Apply Parent Identifiers to Children
-			for _, childID in pairs(Node.Children or {}) do
-				--Create Node Table For Child If Unexistant
-				local childNode = Nodes[childID]
-				if not childNode then
-					childNode = {}
-					Nodes[childID] = childNode
+
+		while #queue > 0 do 
+			for _, childPart in pairs(queue[1]) do
+				local nodeID = tonumber(childPart.Name)
+				if nodeID then
+					local Node = {}
+					Node.Children = {}
+					
+					--Add to child table of parental node
+					local parentID = tonumber(childPart.Parent.Name)
+					local parentNode = Nodes[parentID]
+					if parentNode then
+						table.insert(parentNode.Children, nodeID)
+					end
+					Node.Parent = parentID
+
+					--Queue the children
+					table.insert(queue,childPart:GetChildren())
+
+					--Position Set
+					Node.Position = childPart.Position-p0
+
+
+
+
+					Nodes[nodeID] = Node
 				end
 				
-				--Establish Parent
-				childNode.Parent = NodeID
+					
+
 			end
+			--Remove from queue
+			table.remove(queue,1)
 			
-			--Find node part in prototype preset
-			for _, nodePart in pairs(ModulePrototype.Preset:GetDescendants()) do
-				if tonumber(nodePart.Name) == NodeID then --Found!
-					--Store First Node Part (All positions based relative to NP1)
-					if NodeID == 1 then
-						FirstNodePart = nodePart
+			-- local Nodes = ModulePrototype.Nodes
+			-- local FirstNodePart
+			
+
+			-- for NodeID, Node in pairs(Nodes) do	
+			-- 	--Apply Parent Identifiers to Children
+			-- 	for _, childID in pairs(Node.Children or {}) do
+			-- 		--Create Node Table For Child If Unexistant
+			-- 		local childNode = Nodes[childID]
+			-- 		if not childNode then
+			-- 			childNode = {}
+			-- 			Nodes[childID] = childNode
+			-- 		end
+					
+			-- 		--Establish Parent
+			-- 		childNode.Parent = NodeID
+			-- 	end
+				
+			-- 	--Find node part in prototype preset
+			-- 	for _, nodePart in pairs(ModulePrototype.Preset:GetDescendants()) do
+			-- 		if tonumber(nodePart.Name) == NodeID then --Found!
+			-- 			--Store First Node Part (All positions based relative to NP1)
+			-- 			if NodeID == 1 then
+			-- 				FirstNodePart = nodePart
+			-- 			end
+			-- 			--Create Spacial Information
+			-- 			Node.Position = nodePart.Position-FirstNodePart.Position --Positions Relative to Node 1 (Calculated First). I.E. Node 1 at 0,0,0 
+
+			-- 			break
+			-- 		end
+			-- 	end
+		end
+
+
+			--After Position Calculation: 
+			--Calculate Boundary (r)
+			for NodeID, Node in pairs(Nodes) do	
+				local furthestBranchDist = 0
+				--Check Children
+				for _, childID in pairs(Node.Children or {}) do
+					local Child = Nodes[childID]
+					local dist = (Child.Position-Node.Position).Magnitude
+					if dist > furthestBranchDist then
+						furthestBranchDist = dist
 					end
-					--Create Spacial Information
-					Node.Position = nodePart.Position-FirstNodePart.Position --Positions Relative to Node 1 (Calculated First). I.E. Node 1 at 0,0,0 
-
-					break
 				end
-			end
-		end
 
-
-		--After Position Calculation: 
-		--Calculate Boundary (r)
-		for NodeID, Node in pairs(Nodes) do	
-			local furthestBranchDist = 0
-			--Check Children
-			for _, childID in pairs(Node.Children or {}) do
-				local Child = Nodes[childID]
-				local dist = (Child.Position-Node.Position).Magnitude
-				if dist > furthestBranchDist then
-					furthestBranchDist = dist
+				--Check Parent
+				if Node.Parent then
+					local ParentNode = Nodes[Node.Parent]
+					local dist = (Node.Position-ParentNode.Position).Magnitude
+					if dist > furthestBranchDist then
+						furthestBranchDist = dist
+					end
 				end
+
+				Node.r = furthestBranchDist/2
 			end
 
-			--Check Parent
-			if Node.Parent then
-				local ParentNode = Nodes[Node.Parent]
-				local dist = (Node.Position-ParentNode.Position).Magnitude
-				if dist > furthestBranchDist then
-					furthestBranchDist = dist
-				end
-			end
-
-			Node.r = furthestBranchDist/2
-		end
-
+			ModulePrototype.Nodes = Nodes
 	end
 end
 
@@ -555,6 +595,60 @@ function PlantGen.addModule(Plant, modulePrototypeName, ParentNode)
 	
 end
 
+function PlantGen.addRotatedModule(Plant,Node)
+	
+	local Module = PlantGen.addModule(Plant,"A",Node)
+    
+
+	--Calculate Best Orientation
+	local Node = Module.OrientNode
+	local ParentOrient = PlantGen.Orientation(Node.Parent)
+	PlantGen.SetNodeOrientation(Node,"Y",ParentOrient.Y)
+	
+	local BestOrientation = {}
+	local BestWeight = 7777777
+	for y = 45, 90, 10*3 do
+		PlantGen.SetNodeOrientation(Node,"Y",y)
+		for x = 0, 360, 10*3 do
+			PlantGen.SetNodeOrientation(Node,"X",x)
+			
+			for z = 0, 360, 30*3 do
+				
+				PlantGen.RotateNode(Node,"Z",10)
+				-- PlantGen.GeneratePlantNodes(Plant)
+				-- PlantGen.DisplayBoundries(Plant)
+				-- PlantGen.DrawBranches(Plant)
+
+				-- print(PlantGen.Orientation(Node))
+				local Weight = PlantGen.GetIntersectingWeight(Module.Nodes,PlantGen.GetNodes(Plant))
+				if Weight < BestWeight then
+					BestWeight = Weight
+					BestOrientation = Vector3.new(x,y,0)
+				end
+			end 
+		end
+			
+		-- wait(3)
+	end
+
+	PlantGen.SetNodeOrientation(Node,"Y",BestOrientation.Y)
+	PlantGen.SetNodeOrientation(Node,"X",BestOrientation.X)
+
+	local bestZ = 0
+	local bestWeight = 0
+	for z = 0, 360, 10 do
+		PlantGen.RotateNode(Node,"Z",10)
+		local Weight = PlantGen.GetIntersectingWeight(Module.Nodes,PlantGen.GetNodes(Plant))
+		if Weight > bestWeight then
+			bestWeight = Weight
+			bestZ = z
+		end
+	end
+
+
+	PlantGen.RotateNode(Node,"Z",bestZ)
+
+end
 
 function PlantGen.createPlant(AC, Pos)
 	--Create Empty Plant Container
